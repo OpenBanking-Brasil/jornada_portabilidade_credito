@@ -1,0 +1,99 @@
+@startuml
+!theme materia
+actor User
+participant “Proponente”
+participant “Credora”
+
+group Etapa Validação do consentimento
+User -> Proponente : Verifica disponibilidade de Portabilidade de crédito
+Proponente -> Credora : POST /consents\n(scope: Credit Operations)
+Credora --> Proponente : 201 Created\nstatus: AWAITING_AUTHORISATION
+
+Proponente -> User : Redirect for consent authorization
+User -> Credora : Authorize Consent
+Credora --> Proponente : status: AUTHORISED
+
+Proponente -> Credora : GET /consents/{consentId}
+Credora --> Proponente : 200 OK\nstatus: AUTHORISED
+end
+group Etapa Consulta dos contratos de empréstimo
+
+Proponente -> Credora : GET /loans/contracts
+Credora --> Proponente : 200 OK\nFind contract with\nproductSubType: CREDITO_PESSOAL_CLEAN
+end
+group Etapa Gestão de Simultaneidade
+loop Para cada contrato identificado
+Proponente -> Credora : GET /credit-operations/{contractId}/portability-eligibility
+Credora --> Proponente : 200 OK\nstatus: DISPONIVEL\nisEligible: TRUE
+end
+
+
+
+Proponente -> User : List contracts
+User -> Proponente : Select contract
+group Etapa Consulta detalhes de contrato selecionado
+
+Proponente -> Credora : GET /loans/contracts/{contractId}
+Credora --> Proponente : 200 OK
+
+Proponente -> Credora : GET /loans/contracts/{contractId}/scheduled-installments
+Credora --> Proponente : 200 OK\nRetrieve totalNumberOfInstalments
+
+end
+group Solicitação da Portabilidade de Crédito
+Proponente -> Credora : POST /portabilities\n(proposedContract.totalInstalments = original)
+Credora --> Proponente : 202 Accepted
+end
+
+group Etapa Análise e envio da contraproposta
+!theme mars
+note right of "Credora" : Nesta etapa a Portabilidade é iniciada com status = PENDING
+!theme materia
+note right of "Credora" : Segundo o escopo disponibilizado pelo regulador, \n a IF Credora tem 3 dias úteis para realizar a contraproposta.
+"Credora" -> "Credora"  : Análise do Pedido de Portabilidade e \nenvio da contraproposta
+"Credora" -> User  : Envio da contraproposta
+User -> User  : Cliente analisa contraproposta
+note right of User :Cenário onde o cliente NÃO ACEITA a contraproposta:\n - A IF Credora poderá contatar o cliente por qualquer canal disponível (e-mail,telefone, etc.) \n - O Cliente deve aceitar a contraproposta exclusivamente pelo o Canal Digital da IF Credora até às 9h do 3º dia\n - A ausência de resposta do cliente se caracteriza como o não aceite da contraproposta
+User -> "Credora"  : Informa o não aceite da contraproposta pelo canal digital
+end
+group Etapa Informar a respeito da não retenção do cliente
+!theme mars
+note right of "Credora" : Nesta etapa a portabilidade é iniciada com status = ACCEPTED_SETTLEMENT_IN_PROCESS
+!theme materia
+note right of "Proponente" : Conforme sugerido pelo GT de portabiliadade de crédito, \nOperação retida\n	- Cliente tem até 9h para aceitar a contraproposta\n	Obs.:Após este horário a contraproposta poderá ainda ser exibida no canal digital da credora, porém não poderá ser aceita\n	- Credora tem até 10h para notificar a proponente\n\nOperação não retida\n	- Credora tem até 10h para notificar a proponente
+"Credora" -> "Credora"  : Atualiza situação do pedido de portabilidade para "ACCEPTED_SETTLEMENT_IN_PROCESS"
+loop Consulta situação da portabilidade
+Proponente -> Credora : GET /portabilities/{portabilityId}
+Credora --> Proponente : 200 OK\nstatus: ACCEPTED_SETTLEMENT_IN_PROCESS
+end
+end
+group Etapa Atualização do saldo devedor e dados bancários
+Proponente -> Credora : GET /loans/contracts/{contractId}/payments
+Credora --> Proponente : 200 OK\nRetrieve contractOutstandingBalance
+Proponente -> Credora : GET /account-data
+Credora --> Proponente : 200 OK\nRetrieve STR payment info
+end
+group Etapa Informar a respeito da liquidação efetuada
+!theme mars
+note right of "Credora" : Nesta etapa a portabilidade é iniciada com status = ACCEPTED_SETTLEMENT_COMPLETED
+!theme materia
+note right of "Proponente" : Conforme sugerido em GT, caso o pagamento ocorra após às 18h, o prazo de 2 dias úteis começa a contar no próximo dia útil (D+1)
+Proponente -> Credora : POST /portabilities/{portabilityId}/payment\npaymentAmount = contractOutstandingBalance
+Credora --> Proponente : 202 Accepted
+end
+group Etapa Validar e quitar contrato de empréstimo
+note right of "Credora" : Segundo o escopo disponibilizado pelo regulador, \n a IF Credora tem 2 dias úteis para realizar a validação \ne fornecer o recibo de quitação do contrato de empréstimo.
+"Credora" -> "Credora"  : Análise a respeito do pagamento recebido pela quitação do contrato
+!theme mars
+note right of "Credora" : Nesta etapa a portabilidade é iniciada com status = PORTABILITY_COMPLETED
+!theme materia
+loop Consulta situação do pedido de portabilidade
+    Proponente -> Credora : GET /portabilities/{portabilityId}
+    Credora --> Proponente : 200 OK\nstatus: PORTABILITY_COMPLETED
+end
+end
+group Reportar a estrutura a respeito da portabilidade efetuada
+"Credora" -> "OFB Estrutura"  : Reporta informações a respeito dos pedidos de portabilidade solicitados
+"Proponente" -> "OFB Estrutura"  : Reporta informações a respeito dos pedidos de portabilidade solicitados
+end
+@enduml
