@@ -1,0 +1,83 @@
+@startuml
+!theme materia
+title Portabilidade de Crédito - Open Finance Brasil (OFB)\nFluxo completo de efetivação da Portabilidade de Crédito
+actor "Cliente" as client
+client ->  "Instituição \nProponente" : Verifica disponibilidade de Portabilidade de crédito
+group Etapa Validação do consentimento
+"Instituição \nProponente" ->  "Instituição \nCredora" : Consulta permissions do consentimento fornecido pelo cliente
+"Instituição \nCredora" -> "Instituição \nProponente" : Retorna dados a respeito do consentimento dado pelo cliente
+end
+group Etapa Consulta dos contratos de empréstimo
+"Instituição \nProponente" ->  "Instituição \nCredora" : Solicita número de contratos vinculado ao cliente
+"Instituição \nCredora" -> "Instituição \nProponente" : Contratos realizado pelo cliente
+"Instituição \nProponente" ->  "Instituição \nCredora" : Solicita detalhamento dos contratos \nObs.: Consulta em 3 endpoints distintos
+"Instituição \nCredora" -> "Instituição \nProponente" : Retorna o detalhamento dos contratos solicitados
+end
+"Instituição \nProponente" ->  "Instituição \nProponente" : Análise de risco e elaboração de proposta \npara Portabilidade de crédito
+group Etapa Gestão de Simultaneidade
+note right of "Instituição \nCredora" : IF Credora é responsável por identificar se existe \nou não um pedido prévio de portabilidade em andamento.
+"Instituição \nProponente" ->  "Instituição \nCredora" : Confirma se contrato de empréstimo está elegível \npara solicitação da Portabilidade de crédito
+"Instituição \nCredora" -> "Instituição \nProponente" : Retorna dados a respeito da elegibilidade do contrato \npara solicitação da Portabilidade de crédito
+end
+"Instituição \nProponente" -> client  : Retorna contratos elegíveis para realizar a Portabilidade de crédito
+client ->  "Instituição \nProponente" : Seleciona contrato para verificar proposta de Portabilidade de crédito
+"Instituição \nProponente" -> client  : Retorna proposta para Portabilidade de crédito
+
+client ->  "Instituição \nProponente" : Solicita Portabilidade de crédito
+group Etapa Assinatura do contrato
+"Instituição \nProponente" -> client  : Disponibiliza contrato para assinatura
+client ->  "Instituição \nProponente" : Confirma o aceite da Portabilidade de crédito
+end
+group Solicitação da Portabilidade de Crédito
+!theme mars
+note right of "Instituição \nCredora" : Nesta etapa a portabilidade é iniciada com status = RECEIVED
+!theme materia
+note right of "Instituição \nProponente" : Conforme sugerido em GT, \no prazo de 3 dias úteis começa a contar no próximo dia útil (D+1) ao recebimento do pedido de portabilidade de credito pela IF Credora
+"Instituição \nProponente" -> "Instituição \nCredora"  : Solicita Portabilidade de crédito
+"Instituição \nCredora" -> "Instituição \nProponente"  : Confirma recebimento da Portabilidade de crédito
+end
+group Etapa Análise e envio da contraproposta
+!theme mars
+note right of "Instituição \nCredora" : Nesta etapa a Portabilidade é iniciada com status = PENDING
+!theme materia
+note right of "Instituição \nCredora" : Segundo o escopo disponibilizado pelo regulador, \n a IF Credora tem 3 dias úteis para realizar a contraproposta.
+"Instituição \nCredora" -> "Instituição \nCredora"  : Análise do Pedido de Portabilidade e \nenvio da contraproposta
+"Instituição \nCredora" -> client  : Envio da contraproposta
+client -> client  : Cliente analisa contraproposta
+note right of client :Cenário onde o cliente NÃO ACEITA a contraproposta:\n - A IF Credora poderá contatar o cliente por qualquer canal disponível (e-mail,telefone, etc.) \n - O Cliente deve aceitar a contraproposta exclusivamente pelo o Canal Digital da IF Credora até às 9h do 3º dia\n - A ausência de resposta do cliente se caracteriza como o não aceite da contraproposta
+client -> "Instituição \nCredora"  : Informa o não aceite da contraproposta pelo canal digital
+end
+group Etapa Informar a respeito da não retenção do cliente
+!theme mars
+note right of "Instituição \nCredora" : Nesta etapa a portabilidade é iniciada com status = ACCEPTED_SETTLEMENT_IN_PROCESS
+!theme materia
+note right of "Instituição \nProponente" : Conforme sugerido pelo GT de portabiliadade de crédito, \nOperação retida\n	- Cliente tem até 9h para aceitar a contraproposta\n	Obs.:Após este horário a contraproposta poderá ainda ser exibida no canal digital da credora, porém não poderá ser aceita\n	- Credora tem até 10h para notificar a proponente\n\nOperação não retida\n	- Credora tem até 10h para notificar a proponente
+
+"Instituição \nCredora" -> "Instituição \nProponente"  : Informa a proponente que ela pode prosseguir com a portabilidade de crédito
+end
+group Etapa Atualização do saldo devedor e dados bancários
+"Instituição \nProponente" -> "Instituição \nCredora"  : Consulta saldo devedor atualizado para liquidação
+"Instituição \nCredora" -> "Instituição \nProponente"  : Retorna saldo atualizado para liquidação
+"Instituição \nProponente" -> "Instituição \nCredora"  : Consulta dados bancários para liquidação
+"Instituição \nCredora" -> "Instituição \nProponente"  : Retorna dados bancários para liquidação
+end
+group Etapa Informar a respeito da liquidação efetuada
+!theme mars
+note right of "Instituição \nCredora" : Nesta etapa a portabilidade é iniciada com status = ACCEPTED_SETTLEMENT_COMPLETED
+!theme materia
+note right of "Instituição \nProponente" : Conforme sugerido em GT, caso o pagamento ocorra após às 18h, o prazo de 2 dias úteis começa a contar no próximo dia útil (D+1)
+"Instituição \nProponente" -> "Instituição \nCredora"  : Informa a respeito da liquidação realizada via TED do contrato
+end
+group Etapa Validar e quitar contrato de empréstimo
+note right of "Instituição \nCredora" : Segundo o escopo disponibilizado pelo regulador, \n a IF Credora tem 2 dias úteis para realizar a validação \ne fornecer o recibo de quitação do contrato de empréstimo.
+"Instituição \nCredora" -> "Instituição \nCredora"  : Análise a respeito do pagamento recebido pela quitação do contrato
+!theme mars
+note right of "Instituição \nCredora" : Nesta etapa a portabilidade é iniciada com status = PORTABILITY_COMPLETED
+!theme materia
+"Instituição \nCredora" -> "Instituição \nProponente"  : Confirma recebimento e fornece recibo de quitação do contrato
+end
+group Reportar a estrutura a respeito da portabilidade efetuada
+"Instituição \nCredora" -> "OFB Estrutura"  : Reporta informações a respeito dos pedidos de portabilidade solicitados
+"Instituição \nProponente" -> "OFB Estrutura"  : Reporta informações a respeito dos pedidos de portabilidade solicitados
+end
+@enduml
